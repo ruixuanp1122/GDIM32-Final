@@ -19,3 +19,6 @@ Put your individual final Devlog here.
 Put your individual final Devlog here.
 ### Team Member Name 3
 Put your individual final Devlog here.
+
+## Open-Source Assets
+Cite any open-source assets here. Put them in a LIST, and use correctly formatted LINKS.
