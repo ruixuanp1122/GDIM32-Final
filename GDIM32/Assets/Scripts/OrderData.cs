@@ -1,18 +1,15 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class OrderData : MonoBehaviour
+[CreateAssetMenu]
+public class OrderData : ScriptableObject
 {
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
+    public int basePay;
+    public OrderState state;
+}
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+public enum OrderState
+{
+    Unaccepted,
+    Accepted,
+    Delivered
 }
