@@ -1,20 +1,19 @@
 using UnityEngine;
+
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
     [Header("Movement Settings")]
     public float moveSpeed = 5f;
     public float mouseSensitivity = 100f;
-    public float gravity = -9.81f;
-
-    [Header("Camera Settings")]
+    [Header("Camera")]
     public Camera mainCamera;
 
     private CharacterController cc;
-    private Vector3 velocity;
     private float xRotation = 0f;
+    private NPC currentNearbyNPC;
 
-    private void Start()
+    private void Awake()
     {
         cc = GetComponent<CharacterController>();
         Cursor.lockState = CursorLockMode.Locked;
@@ -23,74 +22,56 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        PlayerMove();
-        CameraRotate();
-        ApplyGravity();
-        CheckInteract();
+        Movement();
+        CameraRotation();
+        CheckNearbyNPC();
+        NPCInteractionInput();
     }
 
-    private void PlayerMove()
+    private void Movement()
     {
-        float x = Input.GetAxis("Horizontal");
-        float z = Input.GetAxis("Vertical");
-        Vector3 move = transform.right * x + transform.forward * z;
-        cc.Move(move.normalized * moveSpeed * Time.deltaTime);
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
+        Vector3 moveDir = transform.right * h + transform.forward * v;
+        cc.Move(moveDir.normalized * moveSpeed * Time.deltaTime);
     }
 
-    private void CameraRotate()
+    private void CameraRotation()
     {
-        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
-        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
+        float mouseX = Input.GetAxisRaw("Mouse X") * mouseSensitivity * Time.deltaTime;
+        float mouseY = Input.GetAxisRaw("Mouse Y") * mouseSensitivity * Time.deltaTime;
 
         xRotation -= mouseY;
         xRotation = Mathf.Clamp(xRotation, -90f, 90f);
-
         mainCamera.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
         transform.Rotate(Vector3.up * mouseX);
     }
 
-    private void ApplyGravity()
+    private void CheckNearbyNPC()
     {
-        if (cc.isGrounded && velocity.y < 0)
+        Collider[] colliders = Physics.OverlapSphere(transform.position, 3f);
+        currentNearbyNPC = null;
+        foreach (Collider col in colliders)
         {
-            velocity.y = -2f;
-        }
-        velocity.y += gravity * Time.deltaTime;
-        cc.Move(velocity * Time.deltaTime);
-    }
-
-    private void CheckInteract()
-    {
-        Ray ray = mainCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));
-        if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, 1 << LayerMask.NameToLayer("NPC") | 1 << LayerMask.NameToLayer("Pickup")))
-        {
-            if (hit.collider.TryGetComponent(out NPC npc))
+            if (col.TryGetComponent(out NPC npc))
             {
-                if (npc.IsInInteractRange(transform))
-                {
-                    if (Input.GetKeyDown(KeyCode.I)) npc.InteractTalk();
-                    if (Input.GetKeyDown(KeyCode.E)) npc.InteractAction();
-                }
-            }
-
-            if (hit.collider.TryGetComponent(out CookieTable cookieTable))
-            {
-                if (Input.GetKeyDown(KeyCode.E)) cookieTable.PickupCookie(transform);
+                currentNearbyNPC = npc;
+                break;
             }
         }
     }
 
-    private void OnApplicationFocus(bool hasFocus)
+    private void NPCInteractionInput()
     {
-        if (hasFocus)
+        if (currentNearbyNPC == null) return;
+
+        if (Input.GetKeyDown(KeyCode.I))
         {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            currentNearbyNPC.InteractTalk();
         }
-        else
+        if (Input.GetKeyDown(KeyCode.E))
         {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            currentNearbyNPC.InteractAct();
         }
     }
 }

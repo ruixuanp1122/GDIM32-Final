@@ -1,49 +1,88 @@
 using UnityEngine;
+
 public class RestaurantOwnerNPC : NPC
 {
-    [Header("Dialogue Content")]
-    public string talk_AcceptOrder = "Take the {0} to {1}! Base pay: {2}$! Don't forget the cookie!";
-    public string talk_CompleteOrder = "Good job! Here's your base pay! {0}$!";
-    public string talk_HasActiveOrder = "Finish your current order first!";
-    public string action_PickupFood = "You picked up the {0}! Go go go!";
+    public OrderData order1;
+    public OrderData order2;
+    private bool isFirstOrderCompleted = false;
 
     public override void InteractTalk()
     {
-        UIManager.Instance.CloseDialogue();
-        UIManager.Instance.orderUIPanel.SetActive(false);
+        if (!isPlayerInRange) return;
 
-        if (currentOrder != null)
+        if (DeliveryManager.Instance.currentActiveOrder == null)
         {
-            if (currentOrder.currentState == OrderData.OrderState.Delivered)
+            if (!isFirstOrderCompleted)
             {
-                UIManager.Instance.ShowDialogue(string.Format(talk_CompleteOrder, currentOrder.basePay));
-                DeliveryManager.Instance.AddEarnings(currentOrder.basePay);
-                DeliveryManager.Instance.CompleteOrder();
-                UIManager.Instance.HideAllHoldIcons();
+                UIManager.Instance.ShowDialogue("Welcome! First order: Burger for Customer1! Press E to accept!");
             }
             else
             {
-                UIManager.Instance.ShowDialogue(talk_HasActiveOrder);
+                UIManager.Instance.ShowDialogue("Great job! Next order: Pizza for Customer2! Press E to accept! \nWant a fortune cookie? (Press E to pick up later!)");
+                order2.isCookieOffered = true;
             }
-            return;
         }
-
-        OrderData nextOrder = DeliveryManager.Instance.GetNextAvailableOrder();
-        DeliveryManager.Instance.StartOrder(nextOrder);
-        UIManager.Instance.ShowDialogue(string.Format(talk_AcceptOrder, nextOrder.foodType, nextOrder.customerName, nextOrder.basePay));
+        else
+        {
+            switch (DeliveryManager.Instance.currentActiveOrder.orderStatus)
+            {
+                case OrderData.OrderStatus.Accepted:
+                    UIManager.Instance.ShowDialogue("Food's on the table! Press E to pick it up!");
+                    break;
+                case OrderData.OrderStatus.Delivered:
+                    UIManager.Instance.ShowDialogue("Back already? Press E to get your base pay!");
+                    break;
+                default:
+                    UIManager.Instance.ShowDialogue("Hurry up with the delivery!");
+                    break;
+            }
+        }
     }
 
-    public override void InteractAction()
+    public override void InteractAct()
     {
-        UIManager.Instance.CloseDialogue();
-        if (currentOrder == null || currentOrder.currentState != OrderData.OrderState.Accepted)
-        {
-            UIManager.Instance.ShowDialogue("Accept an order first!");
-            return;
-        }
+        if (!isPlayerInRange) return;
 
-        currentOrder.currentState = OrderData.OrderState.PickedUp;
-        UIManager.Instance.ShowDialogue(string.Format(action_PickupFood, currentOrder.foodType));
+        if (DeliveryManager.Instance.currentActiveOrder == null)
+        {
+            AcceptNewOrder();
+        }
+        else
+        {
+            if (DeliveryManager.Instance.currentActiveOrder.orderStatus == OrderData.OrderStatus.Accepted)
+            {
+                PickUpFood();
+            }
+            else if (DeliveryManager.Instance.currentActiveOrder.orderStatus == OrderData.OrderStatus.Delivered)
+            {
+                ClaimBasePay();
+            }
+        }
+    }
+
+    private void AcceptNewOrder()
+    {
+        OrderData targetOrder = !isFirstOrderCompleted ? order1 : order2;
+        DeliveryManager.Instance.StartOrder(targetOrder);
+        targetOrder.orderStatus = OrderData.OrderStatus.Accepted;
+        UIManager.Instance.ShowDialogue("Order accepted! Check Order UI for the house photo!");
+    }
+
+    private void PickUpFood()
+    {
+        OrderData currentOrder = DeliveryManager.Instance.currentActiveOrder;
+        currentOrder.orderStatus = OrderData.OrderStatus.PickedUp;
         UIManager.Instance.ShowHoldIcon(currentOrder.foodType);
+        UIManager.Instance.ShowDialogue("Food picked up! Don't forget the fortune cookie!");
+    }
+
+    private void ClaimBasePay()
+    {
+        OrderData currentOrder = DeliveryManager.Instance.currentActiveOrder;
+        DeliveryManager.Instance.AddEarnings(currentOrder.basePay);
+        currentOrder.orderStatus = OrderData.OrderStatus.Submitted;
+        UIManager.Instance.ShowDialogue("Base pay: $" + currentOrder.basePay + "! Total earnings updated!");
+        if (!isFirstOrderCompleted) isFirstOrderCompleted = true;
+        DeliveryManager.Instance.currentActiveOrder = null;
     }
 }

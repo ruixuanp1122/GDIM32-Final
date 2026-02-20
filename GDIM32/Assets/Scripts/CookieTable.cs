@@ -1,38 +1,37 @@
 using UnityEngine;
+
 public class CookieTable : MonoBehaviour
 {
-    [Header("Cookie Settings")]
-    public float interactDistance = 2f;
-    public string talk_NoCookieOffer = "No cookie for this order!";
-    public string talk_AlreadyPicked = "You already have a cookie!";
-    public string action_PickupCookie = "You picked up a fortune cookie! Extra tip!";
+    public float interactDistance = 3f;
+    private PlayerController player;
+    private bool isPlayerInRange;
 
-    private OrderData currentOrder;
+    private void Awake()
+    {
+        player = FindObjectOfType<PlayerController>();
+    }
 
     private void Update()
     {
-        currentOrder = DeliveryManager.Instance.currentActiveOrder;
+        isPlayerInRange = Vector3.Distance(transform.position, player.transform.position) <= interactDistance;
     }
 
-    public void PickupCookie(Transform player)
+    private void OnMouseDown()
     {
-        UIManager.Instance.CloseDialogue();
-        if (Vector3.Distance(transform.position, player.position) > interactDistance) return;
-
-        if (currentOrder == null || currentOrder.currentState != OrderData.OrderState.Accepted || !currentOrder.isCookieOffered)
+        if (isPlayerInRange && DeliveryManager.Instance.currentActiveOrder != null && DeliveryManager.Instance.currentActiveOrder.isCookieOffered)
         {
-            UIManager.Instance.ShowDialogue(talk_NoCookieOffer);
-            return;
+            PickUpCookie();
         }
-
-        if (currentOrder.isCookiePicked)
+        else if(!DeliveryManager.Instance.currentActiveOrder.isCookieOffered)
         {
-            UIManager.Instance.ShowDialogue(talk_AlreadyPicked);
-            return;
+            UIManager.Instance.ShowDialogue("No fortune cookie available yet!");
         }
+    }
 
-        currentOrder.isCookiePicked = true;
-        UIManager.Instance.ShowDialogue(action_PickupCookie);
-        UIManager.Instance.ShowHoldIcon(currentOrder.foodType + "_Cookie");
+    private void PickUpCookie()
+    {
+        DeliveryManager.Instance.currentActiveOrder.isCookiePicked = true;
+        UIManager.Instance.ShowHoldIcon(DeliveryManager.Instance.currentActiveOrder.foodType + "_Cookie");
+        UIManager.Instance.ShowDialogue("Fortune cookie picked up! Extra tip!");
     }
 }
