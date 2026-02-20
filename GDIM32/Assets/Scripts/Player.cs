@@ -1,198 +1,96 @@
 using UnityEngine;
-using System.Collections;
-
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
+    [Header("Movement Settings")]
     public float moveSpeed = 5f;
-    public float runMultiplier = 1.5f;
+    public float mouseSensitivity = 100f;
     public float gravity = -9.81f;
 
-    public float mouseSensitivity = 100f;
-    public float maxLookX = 80f;
-    public float minLookX = -80f;
+    [Header("Camera Settings")]
+    public Camera mainCamera;
 
-    public float interactDistance = 2f;
-    public LayerMask interactLayer;
+    private CharacterController cc;
+    private Vector3 velocity;
+    private float xRotation = 0f;
 
-    public GameObject burgerHeldUI;
-    public GameObject pizzaHeldUI;
-    public GameObject fortuneCookieHeldUI;
-
-    private CharacterController _cc;
-    private Camera _playerCam;
-    private float _xRot;
-    private Vector3 _velocity;
-
-    private bool _isHoldingBurger = false;
-    private bool _isHoldingPizza = false;
-    private bool _isHoldingCookie = false;
-
-    private MonoBehaviour _currentInteractTarget;
-
-    public static PlayerController Instance { get; private set; }
-    private void Awake()
+    private void Start()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-        }
-        else
-        {
-            Instance = this;
-        }
-
-        _cc = GetComponent<CharacterController>();
-        _playerCam = GetComponentInChildren<Camera>();
-        if (_playerCam == null) Debug.LogError("No Camera attached to Player child object!");
-
+        cc = GetComponent<CharacterController>();
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-
-        InitHeldUI();
     }
 
     private void Update()
     {
-        if (PauseMenu.IsPaused) return;
-
-        PlayerMovement();
-        PlayerLook();
-        CheckInteractTarget();
-        PlayerInteractInput();
-        UpdateHeldUI();
+        PlayerMove();
+        CameraRotate();
+        ApplyGravity();
+        CheckInteract();
     }
 
-    private void PlayerMovement()
+    private void PlayerMove()
     {
-        float x = Input.GetAxisRaw("Horizontal");
-        float z = Input.GetAxisRaw("Vertical");
-        Vector3 moveDir = transform.right * x + transform.forward * z;
-        moveDir.Normalize();
-
-        float currentSpeed = Input.GetKey(KeyCode.LeftShift) ? moveSpeed * runMultiplier : moveSpeed;
-        _cc.Move(moveDir * currentSpeed * Time.deltaTime);
-
-        if (_cc.isGrounded && _velocity.y < 0)
-        {
-            _velocity.y = -2f;
-        }
-        _velocity.y += gravity * Time.deltaTime;
-        _cc.Move(_velocity * Time.deltaTime);
+        float x = Input.GetAxis("Horizontal");
+        float z = Input.GetAxis("Vertical");
+        Vector3 move = transform.right * x + transform.forward * z;
+        cc.Move(move.normalized * moveSpeed * Time.deltaTime);
     }
 
-    private void PlayerLook()
+    private void CameraRotate()
     {
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
 
-        _xRot -= mouseY;
-        _xRot = Mathf.Clamp(_xRot, minLookX, maxLookX);
-        _playerCam.transform.localRotation = Quaternion.Euler(_xRot, 0f, 0f);
+        xRotation -= mouseY;
+        xRotation = Mathf.Clamp(xRotation, -90f, 90f);
 
+        mainCamera.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
         transform.Rotate(Vector3.up * mouseX);
     }
 
-    private void CheckInteractTarget()
+    private void ApplyGravity()
     {
-        _currentInteractTarget = null;
-
-        Ray ray = _playerCam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
-        if (Physics.Raycast(ray, out RaycastHit hit, interactDistance, interactLayer))
+        if (cc.isGrounded && velocity.y < 0)
         {
-            _currentInteractTarget = hit.collider.GetComponent<MonoBehaviour>();
-            
-            if (_currentInteractTarget != null)
+            velocity.y = -2f;
+        }
+        velocity.y += gravity * Time.deltaTime;
+        cc.Move(velocity * Time.deltaTime);
+    }
+
+    private void CheckInteract()
+    {
+        Ray ray = mainCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));
+        if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, 1 << LayerMask.NameToLayer("NPC") | 1 << LayerMask.NameToLayer("Pickup")))
+        {
+            if (hit.collider.TryGetComponent(out NPC npc))
             {
-                Debug.Log("Interactable target detected: " + hit.collider.name);
+                if (npc.IsInInteractRange(transform))
+                {
+                    if (Input.GetKeyDown(KeyCode.I)) npc.InteractTalk();
+                    if (Input.GetKeyDown(KeyCode.E)) npc.InteractAction();
+                }
+            }
+
+            if (hit.collider.TryGetComponent(out CookieTable cookieTable))
+            {
+                if (Input.GetKeyDown(KeyCode.E)) cookieTable.PickupCookie(transform);
             }
         }
     }
 
-    private void PlayerInteractInput()
+    private void OnApplicationFocus(bool hasFocus)
     {
-        if (_currentInteractTarget == null) return;
-
-        if (Input.GetKeyDown(KeyCode.I))
+        if (hasFocus)
         {
-            if (_currentInteractTarget is NPCBase)
-            {
-                NPCBase npc = (NPCBase)_currentInteractTarget;
-                npc.TriggerDialogue();
-            }
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
-
-        if (Input.GetKeyDown(KeyCode.E))
+        else
         {
-            if (_currentInteractTarget is FoodTable && !_isHoldingBurger && !_isHoldingPizza)
-            {
-                FoodTable foodTable = (FoodTable)_currentInteractTarget;
-                if (foodTable.HasBurger)
-                {
-                    _isHoldingBurger = true;
-                    foodTable.TakeBurger();
-                }
-                else if (foodTable.HasPizza)
-                {
-                    _isHoldingPizza = true;
-                    foodTable.TakePizza();
-                }
-            }
-            else if (_currentInteractTarget is FortuneCookieTable && !_isHoldingCookie)
-            {
-                FortuneCookieTable cookieTable = (FortuneCookieTable)_currentInteractTarget;
-                if (cookieTable.HasCookie)
-                {
-                    _isHoldingCookie = true;
-                    cookieTable.TakeCookie();
-                }
-            }
-            else if (_currentInteractTarget is NPCBase)
-            {
-                NPCBase npc = (NPCBase)_currentInteractTarget;
-                if (_isHoldingBurger && npc.WantsBurger)
-                {
-                    npc.ReceiveBurger();
-                    _isHoldingBurger = false;
-                }
-                else if (_isHoldingPizza && npc.WantsPizza)
-                {
-                    npc.ReceivePizza();
-                    _isHoldingPizza = false;
-                }
-                else if (_isHoldingCookie && npc.WantsCookie)
-                {
-                    npc.ReceiveCookie();
-                    _isHoldingCookie = false;
-                }
-            }
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
-    }
-
-    private void InitHeldUI()
-    {
-        if (burgerHeldUI != null) burgerHeldUI.SetActive(false);
-        if (pizzaHeldUI != null) pizzaHeldUI.SetActive(false);
-        if (fortuneCookieHeldUI != null) fortuneCookieHeldUI.SetActive(false);
-    }
-
-    private void UpdateHeldUI()
-    {
-        if (burgerHeldUI != null) burgerHeldUI.SetActive(_isHoldingBurger);
-        if (pizzaHeldUI != null) pizzaHeldUI.SetActive(_isHoldingPizza);
-        if (fortuneCookieHeldUI != null) fortuneCookieHeldUI.SetActive(_isHoldingCookie);
-    }
-
-    public bool IsHoldingAnyItem()
-    {
-        return _isHoldingBurger || _isHoldingPizza || _isHoldingCookie;
-    }
-
-    public void DropAllItems()
-    {
-        _isHoldingBurger = false;
-        _isHoldingPizza = false;
-        _isHoldingCookie = false;
-        UpdateHeldUI();
     }
 }
