@@ -1,68 +1,65 @@
 using UnityEngine;
+
 public class CustomerNPC : NPC
 {
-    [Header("Customer Config")]
-    public int customerID;
-
-    [Header("Dialogue Content")]
-    public string talk_Confirm = "Hi! Is my {0} here? I've been waiting!";
-    public string talk_WrongCustomer = "This isn't my order! Go find the right person!";
-    public string talk_NotPickedUp = "You didn't pick up the food yet!";
-    public string action_Deliver = "Thanks! Here's your tip: {0}$!";
-    public string action_DeliverWithCookie = "Wow, a fortune cookie! Extra tip for you! Total tip: {0}$!";
+    public OrderData targetOrder;
+    private int tipAmount;
 
     public override void InteractTalk()
     {
-        UIManager.Instance.CloseDialogue();
-        if (currentOrder == null)
+        if (!isPlayerInRange) return;
+        
+        if (DeliveryManager.Instance.currentActiveOrder == targetOrder)
         {
-            UIManager.Instance.ShowDialogue("You don't have any order!");
-            return;
-        }
-
-        if (currentOrder.currentState != OrderData.OrderState.PickedUp)
-        {
-            UIManager.Instance.ShowDialogue(talk_NotPickedUp);
-            return;
-        }
-
-        if (!IsMatchCustomer())
-        {
-            UIManager.Instance.ShowDialogue(talk_WrongCustomer);
-            return;
-        }
-
-        UIManager.Instance.ShowDialogue(string.Format(talk_Confirm, currentOrder.foodType));
-    }
-
-    public override void InteractAction()
-    {
-        UIManager.Instance.CloseDialogue();
-        if (currentOrder == null || currentOrder.currentState != OrderData.OrderState.PickedUp || !IsMatchCustomer())
-        {
-            UIManager.Instance.ShowDialogue("Something's wrong! Check your order!");
-            return;
-        }
-
-        int totalTip = currentOrder.baseTip;
-        if (currentOrder.isCookiePicked)
-        {
-            totalTip += currentOrder.cookieExtraTip;
-            UIManager.Instance.ShowDialogue(string.Format(action_DeliverWithCookie, totalTip));
+            switch (DeliveryManager.Instance.currentActiveOrder.orderStatus)
+            {
+                case OrderData.OrderStatus.PickedUp:
+                    UIManager.Instance.ShowDialogue("Hi! Did you bring my food? Press E to deliver!");
+                    break;
+                case OrderData.OrderStatus.Delivered:
+                    UIManager.Instance.ShowDialogue("Thanks again for the food!");
+                    break;
+                default:
+                    UIManager.Instance.ShowDialogue("Waiting for my food...");
+                    break;
+            }
         }
         else
         {
-            UIManager.Instance.ShowDialogue(string.Format(action_Deliver, totalTip));
+            UIManager.Instance.ShowDialogue("This isn't my order! Wrong house!");
         }
-
-        DeliveryManager.Instance.AddEarnings(totalTip);
-        currentOrder.currentState = OrderData.OrderState.Delivered;
     }
 
-    private bool IsMatchCustomer()
+    public override void InteractAct()
     {
-        if (customerID == 1 && currentOrder == DeliveryManager.Instance.order1) return true;
-        if (customerID == 2 && currentOrder == DeliveryManager.Instance.order2) return true;
-        return false;
+        if (!isPlayerInRange) return;
+        if (DeliveryManager.Instance.currentActiveOrder != targetOrder) return;
+
+        if (DeliveryManager.Instance.currentActiveOrder.orderStatus == OrderData.OrderStatus.PickedUp)
+        {
+            DeliverFood();
+        }
+        else
+        {
+            UIManager.Instance.ShowDialogue("No food to deliver yet!");
+        }
+    }
+
+    private void DeliverFood()
+    {
+        tipAmount = targetOrder.baseTip;
+        if (DeliveryManager.Instance.currentActiveOrder.isCookiePicked)
+        {
+            tipAmount += targetOrder.cookieExtraTip;
+            UIManager.Instance.ShowDialogue("Yum! Fortune cookie too! Tip: $" + tipAmount);
+        }
+        else
+        {
+            UIManager.Instance.ShowDialogue("Thanks! Tip: $" + tipAmount);
+        }
+
+        DeliveryManager.Instance.AddEarnings(tipAmount);
+        DeliveryManager.Instance.currentActiveOrder.orderStatus = OrderData.OrderStatus.Delivered;
+        UIManager.Instance.HideAllHoldIcons();
     }
 }

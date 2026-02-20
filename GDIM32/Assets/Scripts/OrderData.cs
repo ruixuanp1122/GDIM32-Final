@@ -1,32 +1,26 @@
 using UnityEngine;
-[CreateAssetMenu(fileName = "OrderData", menuName = "OrderUp/OrderData", order = 0)]
+
+[CreateAssetMenu(fileName = "OrderData", menuName = "OrderUp/OrderData")]
 public class OrderData : ScriptableObject
 {
-    [Header("Order Fixed Info")]
     public string customerName;
-    public Sprite houseRefImage;
+    public Sprite orderSprite;
     public string foodType;
     public int basePay;
     public int baseTip;
     public int cookieExtraTip;
 
-    [Header("Order Runtime State")]
-    public OrderState currentState;
+    [Header("Order State")]
+    public OrderStatus orderStatus;
     public bool isCookieOffered;
     public bool isCookiePicked;
 
-    public enum OrderState
+    public enum OrderStatus
     {
         Unaccepted,
         Accepted,
         PickedUp,
         Delivered,
         Submitted
-    }
-
-    public void ResetOrderState()
-    {
-        currentState = OrderState.Unaccepted;
-        isCookiePicked = false;
     }
 }

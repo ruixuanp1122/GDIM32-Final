@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
@@ -8,14 +9,6 @@ public class UIManager : MonoBehaviour
     public GameObject dialoguePanel;
     public Text dialogueText;
     public Button confirmBtn;
-
-    [Header("Order UI")]
-    public GameObject orderUIPanel;
-    public Button orderIconBtn;
-    public Image houseRefImage;
-    public Text customerNameText;
-    public Text foodTypeText;
-    public Text basePayText;
 
     [Header("Earnings UI")]
     public Text currentEarnText;
@@ -26,68 +19,39 @@ public class UIManager : MonoBehaviour
     public GameObject pizzaIcon;
     public GameObject cookieIcon;
 
-    private bool isOrderPanelOpen;
+    [Header("Order UI (Single Image)")]
+    public Button orderIconBtn;
+    public GameObject orderPanel;
+    public Image orderImage;
 
     private void Awake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-        }
-        else
-        {
-            Instance = this;
-        }
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
 
-        dialoguePanel.SetActive(false);
-        orderUIPanel.SetActive(false);
-        isOrderPanelOpen = false;
-        HideAllHoldIcons();
-        confirmBtn.onClick.AddListener(CloseDialogue);
         orderIconBtn.onClick.AddListener(ToggleOrderPanel);
+        orderPanel.SetActive(false);
+        confirmBtn.onClick.AddListener(HideDialogue);
     }
 
-    public void ShowDialogue(string content)
+    public void ToggleOrderPanel()
     {
-        dialoguePanel.SetActive(true);
-        dialogueText.text = content;
+        orderPanel.SetActive(!orderPanel.activeSelf);
     }
 
-    public void CloseDialogue()
+    public void SetOrderImage(Sprite sprite)
     {
-        dialoguePanel.SetActive(false);
-    }
-
-    public void RefreshOrderUI()
-    {
-        OrderData currentOrder = DeliveryManager.Instance.currentActiveOrder;
-        if (currentOrder == null)
+        if (orderImage != null && sprite != null)
         {
-            orderUIPanel.SetActive(false);
-            orderIconBtn.gameObject.SetActive(false);
-            return;
+            orderImage.sprite = sprite;
+            orderImage.SetNativeSize();
         }
-
-        orderIconBtn.gameObject.SetActive(true);
-        houseRefImage.sprite = currentOrder.houseRefImage;
-        customerNameText.text = "Customer: " + currentOrder.customerName;
-        foodTypeText.text = "Food: " + currentOrder.foodType;
-        basePayText.text = "Base Pay: " + currentOrder.basePay + " $";
-
-        isOrderPanelOpen = false;
-        orderUIPanel.SetActive(false);
     }
 
-    private void ToggleOrderPanel()
+    public void UpdateEarningsUI(int current, int total)
     {
-        isOrderPanelOpen = !isOrderPanelOpen;
-        orderUIPanel.SetActive(isOrderPanelOpen);
-    }
-
-    public void RefreshEarningsUI()
-    {
-        currentEarnText.text = "Current: " + DeliveryManager.Instance.currentDeliveryEarnings + " $";
-        totalEarnText.text = "Total: " + DeliveryManager.Instance.totalEarnings + " $";
+        currentEarnText.text = "Current: $" + current;
+        totalEarnText.text = "Total: $" + total;
     }
 
     public void ShowHoldIcon(string itemType)
@@ -95,23 +59,11 @@ public class UIManager : MonoBehaviour
         HideAllHoldIcons();
         switch (itemType)
         {
-            case "Burger":
-                burgerIcon.SetActive(true);
-                break;
-            case "Pizza":
-                pizzaIcon.SetActive(true);
-                break;
-            case "Cookie":
-                cookieIcon.SetActive(true);
-                break;
-            case "Burger_Cookie":
-                burgerIcon.SetActive(true);
-                cookieIcon.SetActive(true);
-                break;
-            case "Pizza_Cookie":
-                pizzaIcon.SetActive(true);
-                cookieIcon.SetActive(true);
-                break;
+            case "Burger": burgerIcon.SetActive(true); break;
+            case "Pizza": pizzaIcon.SetActive(true); break;
+            case "Cookie": cookieIcon.SetActive(true); break;
+            case "Burger_Cookie": burgerIcon.SetActive(true); cookieIcon.SetActive(true); break;
+            case "Pizza_Cookie": pizzaIcon.SetActive(true); cookieIcon.SetActive(true); break;
         }
     }
 
@@ -120,5 +72,16 @@ public class UIManager : MonoBehaviour
         burgerIcon.SetActive(false);
         pizzaIcon.SetActive(false);
         cookieIcon.SetActive(false);
+    }
+
+    public void ShowDialogue(string text)
+    {
+        dialoguePanel.SetActive(true);
+        dialogueText.text = text;
+    }
+
+    public void HideDialogue()
+    {
+        dialoguePanel.SetActive(false);
     }
 }

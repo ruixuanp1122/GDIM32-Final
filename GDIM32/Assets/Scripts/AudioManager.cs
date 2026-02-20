@@ -1,43 +1,37 @@
 using UnityEngine;
+
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
 
-    [Header("Sound Effects")]
-    public AudioClip orderReceivedClip;
-    public AudioClip foodPickupClip;
-    public AudioClip tipReceivedClip;
-    public AudioClip basePayReceivedClip;
-    public AudioClip cookiePickupClip;
+    [Header("WAV Sound Effects")]
+    public AudioClip orderReceived;
+    public AudioClip foodPickup;
+    public AudioClip tipReceived;
+    public AudioClip basePayReceived;
+    public AudioClip cookiePickup;
 
     private AudioSource audioSource;
 
     private void Awake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-        }
-        else
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-
+        if (Instance != null) { Destroy(gameObject); return; }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
         audioSource = GetComponent<AudioSource>();
     }
 
-    public void PlaySound(AudioClip clip)
+    private void PlayClip(AudioClip clip)
     {
-        if (clip != null)
+        if (clip != null && audioSource != null)
         {
             audioSource.PlayOneShot(clip);
         }
     }
 
-    public void PlayOrderReceived() => PlaySound(orderReceivedClip);
-    public void PlayFoodPickup() => PlaySound(foodPickupClip);
-    public void PlayTipReceived() => PlaySound(tipReceivedClip);
-    public void PlayBasePayReceived() => PlaySound(basePayReceivedClip);
-    public void PlayCookiePickup() => PlaySound(cookiePickupClip);
+    public void PlayOrderReceived() => PlayClip(orderReceived);
+    public void PlayFoodPickup() => PlayClip(foodPickup);
+    public void PlayTipReceived() => PlayClip(tipReceived);
+    public void PlayBasePayReceived() => PlayClip(basePayReceived);
+    public void PlayCookiePickup() => PlayClip(cookiePickup);
 }

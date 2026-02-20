@@ -1,22 +1,27 @@
 using UnityEngine;
-[RequireComponent(typeof(Collider))]
+
 public abstract class NPC : MonoBehaviour
 {
-    [Header("Interaction Settings")]
     public float interactDistance = 3f;
-    protected OrderData currentOrder;
+    protected PlayerController player;
+    protected bool isPlayerInRange;
+
+    private void Awake()
+    {
+        player = FindObjectOfType<PlayerController>();
+    }
 
     private void Update()
     {
-        currentOrder = DeliveryManager.Instance.currentActiveOrder;
+        CheckPlayerDistance();
     }
 
-    public bool IsInInteractRange(Transform player)
+    private void CheckPlayerDistance()
     {
-        float distance = Vector3.Distance(transform.position, player.position);
-        return distance <= interactDistance;
+        float distance = Vector3.Distance(transform.position, player.transform.position);
+        isPlayerInRange = distance <= interactDistance;
     }
 
     public abstract void InteractTalk();
-    public abstract void InteractAction();
+    public abstract void InteractAct();
 }
